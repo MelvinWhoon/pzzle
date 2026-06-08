@@ -1,0 +1,201 @@
+'use client'
+import { useEffect, useState, use } from 'react'
+import { ArrowLeft, Plus, Save, Trash2, Upload } from 'lucide-react'
+import Link from 'next/link'
+import Button from '@/components/ui/Button'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import VariantEditor from '@/components/admin/VariantEditor'
+import Badge from '@/components/ui/Badge'
+import { CampaignVariant, Difference } from '@/lib/types'
+
+interface VariantWithEdit extends CampaignVariant {
+  _uploading?: boolean
+  _saving?: boolean
+}
+
+export default function VariantenPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: campaignId } = use(params)
+  const [variants, setVariants] = useState<VariantWithEdit[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+
+  const loadVariants = () => {
+    fetch(`/api/admin/campagnes/${campaignId}`)
+      .then((r) => r.json())
+      .then((d) => setVariants(d.campaign?.variants ?? []))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { loadVariants() }, [campaignId])
+
+  const createVariant = async () => {
+    setCreating(true)
+    const res = await fetch('/api/admin/varianten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        campaign_id: campaignId,
+        label: `Variant ${variants.length + 1}`,
+        image_original: '',
+        image_modified: '',
+        differences: [],
+      }),
+    })
+    setCreating(false)
+    if (res.ok) {
+      const d = await res.json()
+      setVariants((prev) => [...prev, d.variant])
+      setExpandedId(d.variant.id)
+    }
+  }
+
+  const uploadImage = async (variantId: string, field: 'image_original' | 'image_modified', file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', 'variants')
+    const res = await fetch('/api/admin/upload', { method: 'POST', body: formData })
+    const { url } = await res.json()
+    setVariants((prev) => prev.map((v) => v.id === variantId ? { ...v, [field]: url } : v))
+  }
+
+  const saveVariant = async (variant: VariantWithEdit) => {
+    setVariants((prev) => prev.map((v) => v.id === variant.id ? { ...v, _saving: true } : v))
+    await fetch(`/api/admin/varianten/${variant.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        label: variant.label,
+        image_original: variant.image_original,
+        image_modified: variant.image_modified,
+        differences: variant.differences,
+        is_active: variant.is_active,
+      }),
+    })
+    setVariants((prev) => prev.map((v) => v.id === variant.id ? { ...v, _saving: false } : v))
+  }
+
+  const deleteVariant = async (id: string) => {
+    await fetch(`/api/admin/varianten/${id}`, { method: 'DELETE' })
+    setVariants((prev) => prev.filter((v) => v.id !== id))
+    if (expandedId === id) setExpandedId(null)
+  }
+
+  const updateDiffs = (variantId: string, diffs: Difference[]) => {
+    setVariants((prev) => prev.map((v) => v.id === variantId ? { ...v, differences: diffs } : v))
+  }
+
+  if (loading) return <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <Link href={`/admin/campagnes/${campaignId}`}>
+          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /></Button>
+        </Link>
+        <h1 className="text-2xl font-extrabold flex-1">Afbeeldingsvarianten</h1>
+        <Button onClick={createVariant} loading={creating}>
+          <Plus className="h-4 w-4" />Nieuwe variant
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {variants.map((v) => (
+          <div key={v.id} className="bg-white rounded-2xl border border-[var(--color-border)] overflow-hidden">
+            {/* Variant header */}
+            <div
+              className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50"
+              onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}
+            >
+              <input
+                type="text"
+                value={v.label}
+                onChange={(e) => { e.stopPropagation(); setVariants((prev) => prev.map((x) => x.id === v.id ? { ...x, label: e.target.value } : x)) }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 font-bold text-sm bg-transparent border-none outline-none"
+              />
+              <Badge variant={v.client_approved ? 'success' : v.client_approved === false ? 'danger' : 'default'}>
+                {v.client_approved ? 'Goedgekeurd' : v.client_approved === false ? 'Afgekeurd' : 'In afwachting'}
+              </Badge>
+              <Badge variant={v.is_active ? 'info' : 'default'}>{v.is_active ? 'Actief' : 'Inactief'}</Badge>
+              <span className="text-xs text-[var(--color-muted)]">{v.differences?.length ?? 0} verschillen</span>
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="ghost" onClick={() => saveVariant(v)} loading={v._saving}>
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => deleteVariant(v.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Expanded editor */}
+            {expandedId === v.id && (
+              <div className="border-t border-[var(--color-border)] p-6 flex flex-col gap-6">
+                {/* Afbeelding upload */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(['image_original', 'image_modified'] as const).map((field) => (
+                    <div key={field} className="flex flex-col gap-2">
+                      <p className="text-sm font-medium">{field === 'image_original' ? 'Originele afbeelding' : 'Gewijzigde afbeelding'}</p>
+                      <label className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-[var(--color-border)] rounded-xl cursor-pointer hover:border-blue-300 transition-colors">
+                        <Upload className="h-4 w-4 text-[var(--color-muted)]" />
+                        <span className="text-sm text-[var(--color-muted)]">{v[field] ? 'Vervangen' : 'Uploaden'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) uploadImage(v.id, field, file)
+                          }}
+                        />
+                      </label>
+                      {v[field] && (
+                        <p className="text-xs text-[var(--color-muted)] truncate">{v[field]}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actief toggle */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={v.is_active}
+                    onChange={(e) => setVariants((prev) => prev.map((x) => x.id === v.id ? { ...x, is_active: e.target.checked } : x))}
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  <span className="text-sm font-medium">Actieve variant (gebruikt in het spel)</span>
+                </label>
+
+                {/* Verschil-editor */}
+                {v.image_modified ? (
+                  <VariantEditor
+                    imageModifiedUrl={v.image_modified}
+                    imageOriginalUrl={v.image_original}
+                    differences={v.differences ?? []}
+                    onChange={(diffs) => updateDiffs(v.id, diffs)}
+                  />
+                ) : (
+                  <div className="bg-gray-50 rounded-xl p-6 text-center text-[var(--color-muted)] text-sm">
+                    Upload eerst de gewijzigde afbeelding om verschillen te plaatsen.
+                  </div>
+                )}
+
+                <Button onClick={() => saveVariant(v)} loading={v._saving} className="self-end">
+                  <Save className="h-4 w-4" />Opslaan
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {variants.length === 0 && (
+          <div className="bg-white rounded-2xl border border-[var(--color-border)] p-12 text-center">
+            <p className="text-[var(--color-muted)]">Nog geen varianten. Klik op &ldquo;Nieuwe variant&rdquo; om te beginnen.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
