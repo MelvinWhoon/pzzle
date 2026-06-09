@@ -10,6 +10,7 @@ export interface Client {
   active: boolean
   logo_url: string | null
   website: string | null
+  stats_token: string | null
   campaign_count?: number
   created_at: string
   updated_at: string
@@ -32,6 +33,9 @@ export interface Campaign {
   ends_at: string | null
   flyer_image: string | null
   flyer_tagline: string | null
+  instant_win_enabled: boolean
+  instant_win_slots: number
+  instant_win_time_sec: number | null
   created_at: string
   updated_at: string
   client?: Client
@@ -148,6 +152,7 @@ export interface Winner {
   notified_at: string | null
   claimed: boolean
   claimed_at: string | null
+  is_instant_win: boolean
   notes: string | null
   created_at: string
   player?: Player

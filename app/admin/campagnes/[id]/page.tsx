@@ -20,6 +20,7 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
     city: '', postal_codes_raw: '',
     radius_km: '', num_differences: '5', time_limit_sec: '120',
     starts_at: '', ends_at: '', status: 'draft',
+    instant_win_enabled: false, instant_win_slots: '0', instant_win_time_sec: '',
   })
   const [uploadingFlyer, setUploadingFlyer] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -47,6 +48,9 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         starts_at: c.starts_at ? c.starts_at.slice(0, 16) : '',
         ends_at: c.ends_at ? c.ends_at.slice(0, 16) : '',
         status: c.status,
+        instant_win_enabled: c.instant_win_enabled ?? false,
+        instant_win_slots: (c.instant_win_slots ?? 0).toString(),
+        instant_win_time_sec: c.instant_win_time_sec?.toString() ?? '',
       })
     }).finally(() => setLoading(false))
   }, [id])
@@ -66,6 +70,9 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         city: form.city || null, postal_codes, radius_km: form.radius_km ? parseFloat(form.radius_km) : null,
         num_differences: parseInt(form.num_differences), time_limit_sec: parseInt(form.time_limit_sec),
         starts_at: form.starts_at || null, ends_at: form.ends_at || null, status: form.status,
+        instant_win_enabled: form.instant_win_enabled,
+        instant_win_slots: parseInt(form.instant_win_slots) || 0,
+        instant_win_time_sec: form.instant_win_time_sec ? parseInt(form.instant_win_time_sec) : null,
       }),
     })
     setSaving(false)
@@ -144,6 +151,46 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
           <Input label="Einddatum" type="datetime-local" value={form.ends_at} onChange={set('ends_at')} />
         </div>
         <Select label="Status" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} options={statusOptions} />
+
+        {/* Instant Win */}
+        <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">⚡ Instant Win modus</p>
+              <p className="text-xs text-[var(--color-muted)]">Eerste X spelers die alle verschillen vinden winnen direct</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={form.instant_win_enabled}
+                onChange={(e) => setForm((p) => ({ ...p, instant_win_enabled: e.target.checked }))}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-primary)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
+            </label>
+          </div>
+          {form.instant_win_enabled && (
+            <div className="grid grid-cols-2 gap-3 pl-2">
+              <Input
+                label="Winnende slots (max. X spelers)"
+                type="number"
+                min="1"
+                placeholder="bijv. 3"
+                value={form.instant_win_slots}
+                onChange={set('instant_win_slots')}
+              />
+              <Input
+                label="Max. tijd (sec, leeg = geen limiet)"
+                type="number"
+                min="1"
+                placeholder="bijv. 60"
+                value={form.instant_win_time_sec}
+                onChange={set('instant_win_time_sec')}
+              />
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-3 pt-2">
           <Link href="/admin/campagnes" className="flex-1">
             <Button variant="secondary" className="w-full">Annuleren</Button>

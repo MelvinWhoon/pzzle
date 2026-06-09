@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, FormEvent, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Upload, X, BarChart2 } from 'lucide-react'
+import { ArrowLeft, Upload, X, BarChart2, Copy, Check, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -16,6 +16,8 @@ export default function EditKlantPage({ params }: { params: Promise<{ id: string
     notes: '', active: true, logo_url: '', website: '',
   })
   const [campaignCount, setCampaignCount] = useState<number | null>(null)
+  const [statsToken, setStatsToken] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
@@ -38,6 +40,7 @@ export default function EditKlantPage({ params }: { params: Promise<{ id: string
           website: client.website ?? '',
         })
         setCampaignCount(client.campaign_count ?? null)
+        setStatsToken(client.stats_token ?? null)
       })
       .finally(() => setLoading(false))
   }, [id])
@@ -141,6 +144,37 @@ export default function EditKlantPage({ params }: { params: Promise<{ id: string
           />
           <span className="text-sm font-medium">Actief</span>
         </label>
+        {/* Stats-portal link */}
+        {statsToken && (
+          <div className="border border-blue-200 bg-blue-50 rounded-xl p-4 flex flex-col gap-2">
+            <p className="text-sm font-semibold text-blue-800">📊 Klant statistieken-link</p>
+            <p className="text-xs text-blue-600">Deel deze link met de klant — zij zien realtime statistieken zonder login.</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-white border border-blue-200 rounded-lg px-3 py-2 text-blue-700 truncate">
+                {typeof window !== 'undefined' ? `${window.location.origin}/klant/${statsToken}/stats` : `/klant/${statsToken}/stats`}
+              </code>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const url = `${window.location.origin}/klant/${statsToken}/stats`
+                  navigator.clipboard.writeText(url)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+              <a href={`/klant/${statsToken}/stats`} target="_blank" rel="noopener noreferrer">
+                <Button type="button" size="sm" variant="secondary">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </a>
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-500">{error}</p>}
         <div className="flex gap-3 pt-2">
           <Link href="/admin/klanten" className="flex-1">

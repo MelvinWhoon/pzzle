@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Pencil, Image } from 'lucide-react'
+import { Plus, Pencil, Image, QrCode } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import DataTable, { Column } from '@/components/admin/DataTable'
@@ -62,11 +62,28 @@ export default function CampagnesPage() {
       render: (r) => (
         <div className="flex items-center gap-1 justify-end">
           <Link href={`/admin/campagnes/${r.id}`}>
-            <Button size="sm" variant="ghost"><Pencil className="h-3.5 w-3.5" /></Button>
+            <Button size="sm" variant="ghost" title="Bewerken"><Pencil className="h-3.5 w-3.5" /></Button>
           </Link>
           <Link href={`/admin/campagnes/${r.id}/varianten`}>
-            <Button size="sm" variant="ghost"><Image className="h-3.5 w-3.5" /></Button>
+            <Button size="sm" variant="ghost" title="Varianten"><Image className="h-3.5 w-3.5" /></Button>
           </Link>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="QR-code downloaden"
+            onClick={async () => {
+              const res = await fetch(`/api/admin/campagnes/${r.id}/qr`)
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `qr-pzzle-${r.title.replace(/\s+/g, '-').toLowerCase()}.png`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            <QrCode className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ),
     },

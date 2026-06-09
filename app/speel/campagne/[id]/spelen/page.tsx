@@ -47,6 +47,8 @@ export default function SpelenPage({ params }: { params: Promise<{ id: string }>
         campaign_id: campaignId,
         differences_found: foundIds.length,
         time_spent_sec: timeSpent,
+        instant_win: data.instant_win ?? false,
+        instant_win_prize: data.instant_win_prize ?? null,
       }))
     }
     router.push(`/speel/campagne/${campaignId}/registreer?session=${sessionToken}`)
