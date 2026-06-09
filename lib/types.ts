@@ -30,17 +30,26 @@ export interface Campaign {
   status: 'draft' | 'active' | 'paused' | 'archived'
   starts_at: string | null
   ends_at: string | null
+  flyer_image: string | null
+  flyer_tagline: string | null
   created_at: string
   updated_at: string
   client?: Client
   variants?: CampaignVariant[]
 }
 
-export interface Difference {
-  id: string
+export interface PolygonPoint {
   x: number
   y: number
-  radius: number
+}
+
+export interface Difference {
+  id: string
+  type?: 'circle' | 'polygon'
+  x: number       // centerpunt (cirkel) of centroïde (polygoon)
+  y: number
+  radius: number  // cirkel-radius; polygoon gebruikt points
+  points?: PolygonPoint[]
   label?: string
 }
 

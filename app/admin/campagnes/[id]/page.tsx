@@ -2,7 +2,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Image } from 'lucide-react'
+import { ArrowLeft, Image, Upload, X } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -16,10 +16,12 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [clients, setClients] = useState<Client[]>([])
   const [form, setForm] = useState({
-    client_id: '', title: '', description: '', city: '', postal_codes_raw: '',
+    client_id: '', title: '', description: '', flyer_tagline: '', flyer_image: '',
+    city: '', postal_codes_raw: '',
     radius_km: '', num_differences: '5', time_limit_sec: '120',
     starts_at: '', ends_at: '', status: 'draft',
   })
+  const [uploadingFlyer, setUploadingFlyer] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -35,6 +37,8 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         client_id: c.client_id ?? '',
         title: c.title,
         description: c.description ?? '',
+        flyer_tagline: c.flyer_tagline ?? '',
+        flyer_image: c.flyer_image ?? '',
         city: c.city ?? '',
         postal_codes_raw: c.postal_codes?.join(', ') ?? '',
         radius_km: c.radius_km?.toString() ?? '',
@@ -58,6 +62,7 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: form.client_id || null, title: form.title, description: form.description || null,
+        flyer_tagline: form.flyer_tagline || null, flyer_image: form.flyer_image || null,
         city: form.city || null, postal_codes, radius_km: form.radius_km ? parseFloat(form.radius_km) : null,
         num_differences: parseInt(form.num_differences), time_limit_sec: parseInt(form.time_limit_sec),
         starts_at: form.starts_at || null, ends_at: form.ends_at || null, status: form.status,
@@ -96,6 +101,37 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
           <textarea value={form.description} onChange={set('description')} rows={2}
             className="w-full px-4 py-3 border border-[var(--color-border)] rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
         </div>
+
+        <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-3">
+          <p className="text-sm font-semibold">Flyer (zichtbaar bij campagnekeuze)</p>
+          <Input label="Flyertekst — wat is er te winnen?" placeholder="bijv. Win een dinercheque t.w.v. €50!" value={form.flyer_tagline} onChange={set('flyer_tagline')} />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Flyerafbeelding</label>
+            <div className="flex items-center gap-3">
+              {form.flyer_image && (
+                <div className="relative">
+                  <img src={form.flyer_image} alt="Flyer" className="h-20 w-32 rounded-xl object-cover border border-[var(--color-border)]" />
+                  <button type="button" onClick={() => setForm((p) => ({ ...p, flyer_image: '' }))}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><X className="h-3 w-3" /></button>
+                </div>
+              )}
+              <label className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-[var(--color-border)] rounded-xl cursor-pointer hover:border-blue-300 transition-colors">
+                <Upload className="h-4 w-4 text-[var(--color-muted)]" />
+                <span className="text-sm text-[var(--color-muted)]">{uploadingFlyer ? 'Uploaden...' : form.flyer_image ? 'Vervangen' : 'Afbeelding uploaden'}</span>
+                <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                  const f = e.target.files?.[0]; if (!f) return
+                  setUploadingFlyer(true)
+                  const fd = new FormData(); fd.append('file', f); fd.append('folder', 'flyers')
+                  const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+                  const { url } = await res.json()
+                  setForm((p) => ({ ...p, flyer_image: url }))
+                  setUploadingFlyer(false)
+                }} />
+              </label>
+            </div>
+          </div>
+        </div>
+
         <Input label="Stad" value={form.city} onChange={set('city')} />
         <Input label="Postcodegebieden" value={form.postal_codes_raw} onChange={set('postal_codes_raw')} placeholder="5061, 5062" />
         <Input label="Radius in km" type="number" value={form.radius_km} onChange={set('radius_km')} />

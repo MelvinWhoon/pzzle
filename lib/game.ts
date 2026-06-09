@@ -1,4 +1,17 @@
-import { Difference } from '@/lib/types'
+import { Difference, PolygonPoint } from '@/lib/types'
+
+function pointInPolygon(px: number, py: number, points: PolygonPoint[]): boolean {
+  if (points.length < 3) return false
+  let inside = false
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i].x, yi = points[i].y
+    const xj = points[j].x, yj = points[j].y
+    if (((yi > py) !== (yj > py)) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside
+    }
+  }
+  return inside
+}
 
 export function checkHit(
   relX: number,
@@ -8,8 +21,12 @@ export function checkHit(
 ): string | null {
   for (const d of differences) {
     if (found.includes(d.id)) continue
-    const dist = Math.sqrt((relX - d.x) ** 2 + (relY - d.y) ** 2)
-    if (dist <= d.radius) return d.id
+    if (d.type === 'polygon' && d.points && d.points.length >= 3) {
+      if (pointInPolygon(relX, relY, d.points)) return d.id
+    } else {
+      const dist = Math.sqrt((relX - d.x) ** 2 + (relY - d.y) ** 2)
+      if (dist <= d.radius) return d.id
+    }
   }
   return null
 }
