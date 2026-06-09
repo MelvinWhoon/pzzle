@@ -1,21 +1,48 @@
 'use client'
 import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { CheckCircle, Mail, Calendar, Play, ArrowRight } from 'lucide-react'
+import { CheckCircle, Mail, Calendar, Play, ArrowRight, Star } from 'lucide-react'
 import PwaInstallBanner from '@/components/player/PwaInstallBanner'
 import { Campaign } from '@/lib/types'
+
+interface LastResult {
+  score: number
+  campaign_id: string
+  differences_found: number
+  time_spent_sec: number
+}
 
 export default function BedanktPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: currentCampaignId } = use(params)
   const [moreCampaigns, setMoreCampaigns] = useState<Campaign[]>([])
+  const [lastResult, setLastResult] = useState<LastResult | null>(null)
 
   useEffect(() => {
+    // Score ophalen uit sessionStorage
+    try {
+      const raw = sessionStorage.getItem('pzzle_last_result')
+      if (raw) {
+        const result: LastResult = JSON.parse(raw)
+        if (result.campaign_id === currentCampaignId) setLastResult(result)
+      }
+    } catch { /* ignore */ }
+
+    // Campagne markeren als gespeeld in localStorage
+    try {
+      const played: string[] = JSON.parse(localStorage.getItem('pzzle_played') ?? '[]')
+      if (!played.includes(currentCampaignId)) {
+        played.push(currentCampaignId)
+        localStorage.setItem('pzzle_played', JSON.stringify(played))
+      }
+    } catch { /* ignore */ }
+
     // Haal de overige campagnes op uit sessionStorage
-    const availableIds: string[] = JSON.parse(sessionStorage.getItem('available_campaigns') ?? '[]')
+    const availableIds: string[] = (() => {
+      try { return JSON.parse(sessionStorage.getItem('available_campaigns') ?? '[]') } catch { return [] }
+    })()
     const remaining = availableIds.filter((cid) => cid !== currentCampaignId)
     if (remaining.length === 0) return
 
-    // Laad campagne-info voor de overige ID's
     Promise.all(
       remaining.map((cid) =>
         fetch(`/api/campagnes/${cid}`)
@@ -37,6 +64,22 @@ export default function BedanktPage({ params }: { params: Promise<{ id: string }
         <h1 className="text-3xl font-extrabold">Bedankt!</h1>
         <p className="text-[var(--color-muted)] mt-2">Je doet mee aan de trekking.</p>
       </div>
+
+      {/* Score kaart */}
+      {lastResult && lastResult.score > 0 && (
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-100 border border-purple-200 rounded-2xl p-5 w-full max-w-sm flex items-center gap-4">
+          <div className="bg-purple-500 rounded-xl p-2.5 shrink-0">
+            <Star className="h-6 w-6 text-white" />
+          </div>
+          <div className="text-left">
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Jouw score</p>
+            <p className="text-3xl font-extrabold text-purple-900">{lastResult.score.toLocaleString('nl-NL')}</p>
+            <p className="text-xs text-purple-600">
+              {lastResult.differences_found} gevonden · {lastResult.time_spent_sec}s
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-6 border border-[var(--color-border)] w-full max-w-sm space-y-4">
         <div className="flex items-start gap-3 text-left">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { sendRegistrationConfirmation } from '@/lib/mailer'
 import { RegistrationInput } from '@/lib/types'
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -33,10 +34,10 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
 
-  // Controleer sessie
+  // Controleer sessie + haal campagne info op voor e-mail
   const { data: session, error: sesErr } = await supabase
     .from('game_sessions')
-    .select('id, campaign_id, player_id')
+    .select('id, campaign_id, player_id, campaign:campaigns(title, client:clients(name))')
     .eq('session_token', session_token)
     .single()
 
@@ -58,6 +59,22 @@ export async function POST(req: NextRequest) {
 
   if (existing) {
     playerId = existing.id
+
+    // ── Play-once check: heeft deze speler al een voltooide registratie voor deze campagne? ──
+    const { data: prevSession } = await supabase
+      .from('game_sessions')
+      .select('id')
+      .eq('player_id', existing.id)
+      .eq('campaign_id', session.campaign_id)
+      .not('registered_at', 'is', null)
+      .neq('id', session.id)
+      .limit(1)
+      .maybeSingle()
+
+    if (prevSession) {
+      return NextResponse.json({ error: 'already_played', campaign_id: session.campaign_id }, { status: 409 })
+    }
+
     await supabase
       .from('players')
       .update({ first_name, last_name, phone: phone ?? null, postal_code: postal_code ?? null, city: city ?? null, updated_at: new Date().toISOString() })
@@ -91,6 +108,13 @@ export async function POST(req: NextRequest) {
     ip_address: ip,
     user_agent: req.headers.get('user-agent'),
   })
+
+  // Stuur bevestigingsmail (non-blocking — laat app niet falen als mail mislukt)
+  const campaignRaw = session.campaign
+  const campaign = (Array.isArray(campaignRaw) ? campaignRaw[0] : campaignRaw) as unknown as { title: string; client?: { name: string } | null } | null
+  if (campaign) {
+    sendRegistrationConfirmation({ email: email.toLowerCase().trim(), first_name }, campaign).catch(() => {})
+  }
 
   return NextResponse.json({ success: true, player_id: playerId })
 }

@@ -6,17 +6,27 @@ export default async function CampagnePage({ params }: { params: Promise<{ id: s
   const { id } = await params
   const supabase = createServiceClient()
 
-  const { data: campaign, error } = await supabase
-    .from('campaigns')
-    .select('*, client:clients(name), variants:campaign_variants(*), prizes(*)')
-    .eq('id', id)
-    .eq('status', 'active')
-    .single()
+  const [campaignRes, countRes] = await Promise.all([
+    supabase
+      .from('campaigns')
+      .select('*, client:clients(name, logo_url), variants:campaign_variants(*), prizes(*)')
+      .eq('id', id)
+      .eq('status', 'active')
+      .single(),
+    supabase
+      .from('game_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id)
+      .not('player_id', 'is', null),
+  ])
 
-  if (error || !campaign) notFound()
+  if (campaignRes.error || !campaignRes.data) notFound()
+
+  const campaign = campaignRes.data
+  const playerCount = countRes.count ?? 0
 
   const activeVariant = campaign.variants?.find((v: { is_active: boolean }) => v.is_active) ?? campaign.variants?.[0]
   if (!activeVariant) notFound()
 
-  return <CampaignIntro campaign={campaign} variant={activeVariant} />
+  return <CampaignIntro campaign={campaign} variant={activeVariant} playerCount={playerCount} />
 }

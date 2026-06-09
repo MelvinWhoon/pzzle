@@ -10,9 +10,10 @@ interface RegistrationFormProps {
   sessionToken: string
   campaignId: string
   onSuccess: () => void
+  onAlreadyPlayed?: () => void
 }
 
-export default function RegistrationForm({ sessionToken, campaignId, onSuccess }: RegistrationFormProps) {
+export default function RegistrationForm({ sessionToken, campaignId, onSuccess, onAlreadyPlayed }: RegistrationFormProps) {
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -65,6 +66,10 @@ export default function RegistrationForm({ sessionToken, campaignId, onSuccess }
       })
       if (!res.ok) {
         const data = await res.json()
+        if (res.status === 409 && data.error === 'already_played') {
+          onAlreadyPlayed?.()
+          return
+        }
         setErrors({ submit: data.error ?? 'Er ging iets mis, probeer opnieuw.' })
         return
       }

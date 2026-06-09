@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Shuffle, Users, Trophy, ChevronDown, ChevronUp } from 'lucide-react'
+import { Shuffle, Users, Trophy, ChevronDown, ChevronUp, Mail, MailCheck } from 'lucide-react'
 import DataTable, { Column } from '@/components/admin/DataTable'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
@@ -85,6 +85,15 @@ export default function WinnaaarsPage() {
     load() // refresh winnaars tabel
   }
 
+  const sendEmail = async (id: string) => {
+    await fetch(`/api/admin/winnaars/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_email' }),
+    })
+    load()
+  }
+
   const markNotified = async (id: string) => {
     await fetch(`/api/admin/winnaars/${id}`, {
       method: 'PATCH',
@@ -129,10 +138,20 @@ export default function WinnaaarsPage() {
     }},
     { key: 'campaign', header: 'Campagne', render: (r) => (r.campaign as { title: string } | null)?.title ?? '–' },
     {
-      key: 'notified', header: 'Gecontacteerd',
-      render: (r) => r.notified
-        ? <Badge variant="success">Ja</Badge>
-        : <Button size="sm" variant="secondary" onClick={() => markNotified(r.id)}>Markeer</Button>,
+      key: 'notified', header: 'E-mail verzonden',
+      render: (r) => r.notified ? (
+        <div className="flex items-center gap-1.5">
+          <MailCheck className="h-4 w-4 text-green-600" />
+          <Badge variant="success">Verstuurd</Badge>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="secondary" onClick={() => sendEmail(r.id)}>
+            <Mail className="h-3.5 w-3.5" />Stuur e-mail
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => markNotified(r.id)} title="Markeer als gecontacteerd (zonder e-mail)">✓</Button>
+        </div>
+      ),
     },
     {
       key: 'claimed', header: 'Prijs geregeld',

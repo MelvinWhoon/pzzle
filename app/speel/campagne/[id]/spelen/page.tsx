@@ -31,7 +31,7 @@ export default function SpelenPage({ params }: { params: Promise<{ id: string }>
 
   const handleComplete = async (timeSpent: number, foundIds: string[]) => {
     if (!sessionToken) return
-    await fetch(`/api/spel/${sessionToken}/afronden`, {
+    const res = await fetch(`/api/spel/${sessionToken}/afronden`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -39,6 +39,16 @@ export default function SpelenPage({ params }: { params: Promise<{ id: string }>
         time_spent_sec: timeSpent,
       }),
     })
+    const data = await res.json()
+    // Sla score op in sessionStorage voor het bedankt-scherm
+    if (data.score != null) {
+      sessionStorage.setItem('pzzle_last_result', JSON.stringify({
+        score: data.score,
+        campaign_id: campaignId,
+        differences_found: foundIds.length,
+        time_spent_sec: timeSpent,
+      }))
+    }
     router.push(`/speel/campagne/${campaignId}/registreer?session=${sessionToken}`)
   }
 
