@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`
 
 const VARIANT_PROMPTS = [
   `Je krijgt een afbeelding van een lokaal bedrijf. Maak een vrijwel identieke variant voor een "zoek de verschillen" spel.
@@ -69,14 +69,18 @@ export async function POST(req: NextRequest) {
             ],
           }],
           generationConfig: {
-            responseModalities: ['image', 'text'],
+            responseModalities: ['IMAGE', 'TEXT'],
           },
         }),
       })
 
       if (!geminiRes.ok) {
-        const errText = await geminiRes.text()
-        console.error(`Gemini fout variant ${i + 1}:`, errText)
+        const errJson = await geminiRes.json().catch(() => ({}))
+        const msg = errJson?.error?.message || `HTTP ${geminiRes.status}`
+        console.error(`Gemini fout variant ${i + 1}:`, msg)
+        if (results.length === 0 && i === 1) {
+          return NextResponse.json({ error: `Gemini API fout: ${msg}` }, { status: 502 })
+        }
         continue
       }
 
@@ -85,7 +89,11 @@ export async function POST(req: NextRequest) {
       const imagePart = parts.find((p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData?.data)
 
       if (!imagePart?.inlineData) {
-        console.error(`Geen afbeelding in Gemini response voor variant ${i + 1}`, JSON.stringify(geminiData).slice(0, 500))
+        const reason = geminiData.candidates?.[0]?.finishReason || 'onbekend'
+        console.error(`Geen afbeelding in Gemini response voor variant ${i + 1}, reden: ${reason}`)
+        if (results.length === 0 && i === 1) {
+          return NextResponse.json({ error: `Gemini genereerde geen afbeelding (reden: ${reason})` }, { status: 502 })
+        }
         continue
       }
 
