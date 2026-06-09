@@ -1,7 +1,16 @@
+'use client'
+import { usePathname } from 'next/navigation'
 import AdminNav from '@/components/admin/AdminNav'
 import { ToastProvider } from '@/components/ui/Toast'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isLoginPage = pathname === '/admin/login'
+
+  if (isLoginPage) {
+    return <ToastProvider>{children}</ToastProvider>
+  }
+
   return (
     <ToastProvider>
       <div className="flex h-dvh bg-[var(--color-surface)] overflow-hidden">

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, use } from 'react'
-import { ArrowLeft, Plus, Save, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, Plus, Save, Trash2, Upload, Sparkles, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -13,12 +13,23 @@ interface VariantWithEdit extends CampaignVariant {
   _saving?: boolean
 }
 
+interface AiVariantOption {
+  url: string
+  label: string
+}
+
 export default function VariantenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: campaignId } = use(params)
   const [variants, setVariants] = useState<VariantWithEdit[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+
+  // AI variant generation state (per variant)
+  const [aiLoading, setAiLoading] = useState<string | null>(null) // variantId or null
+  const [aiOptions, setAiOptions] = useState<Record<string, AiVariantOption[]>>({}) // variantId → options
+  const [aiSelected, setAiSelected] = useState<Record<string, string>>({}) // variantId → chosen url
+  const [aiError, setAiError] = useState<string | null>(null)
 
   const loadVariants = () => {
     fetch(`/api/admin/campagnes/${campaignId}`)
@@ -57,6 +68,36 @@ export default function VariantenPage({ params }: { params: Promise<{ id: string
     const res = await fetch('/api/admin/upload', { method: 'POST', body: formData })
     const { url } = await res.json()
     setVariants((prev) => prev.map((v) => v.id === variantId ? { ...v, [field]: url } : v))
+    // Clear AI options when original changes
+    if (field === 'image_original') {
+      setAiOptions((prev) => { const n = { ...prev }; delete n[variantId]; return n })
+      setAiSelected((prev) => { const n = { ...prev }; delete n[variantId]; return n })
+    }
+  }
+
+  const generateAiVariants = async (variantId: string, imageUrl: string) => {
+    setAiLoading(variantId)
+    setAiError(null)
+    setAiOptions((prev) => { const n = { ...prev }; delete n[variantId]; return n })
+    try {
+      const res = await fetch('/api/admin/ai-variant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: imageUrl, campaign_id: campaignId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Genereren mislukt')
+      setAiOptions((prev) => ({ ...prev, [variantId]: data.variants }))
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Onbekende fout')
+    } finally {
+      setAiLoading(null)
+    }
+  }
+
+  const selectAiVariant = (variantId: string, url: string) => {
+    setAiSelected((prev) => ({ ...prev, [variantId]: url }))
+    setVariants((prev) => prev.map((v) => v.id === variantId ? { ...v, image_modified: url } : v))
   }
 
   const saveVariant = async (variant: VariantWithEdit) => {
@@ -133,29 +174,104 @@ export default function VariantenPage({ params }: { params: Promise<{ id: string
             {expandedId === v.id && (
               <div className="border-t border-[var(--color-border)] p-6 flex flex-col gap-6">
                 {/* Afbeelding upload */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(['image_original', 'image_modified'] as const).map((field) => (
-                    <div key={field} className="flex flex-col gap-2">
-                      <p className="text-sm font-medium">{field === 'image_original' ? 'Originele afbeelding' : 'Gewijzigde afbeelding'}</p>
-                      <label className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-[var(--color-border)] rounded-xl cursor-pointer hover:border-blue-300 transition-colors">
-                        <Upload className="h-4 w-4 text-[var(--color-muted)]" />
-                        <span className="text-sm text-[var(--color-muted)]">{v[field] ? 'Vervangen' : 'Uploaden'}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) uploadImage(v.id, field, file)
-                          }}
-                        />
-                      </label>
-                      {v[field] && (
-                        <p className="text-xs text-[var(--color-muted)] truncate">{v[field]}</p>
-                      )}
-                    </div>
-                  ))}
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm font-semibold">Originele afbeelding</p>
+                  <label className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-[var(--color-border)] rounded-xl cursor-pointer hover:border-blue-300 transition-colors w-fit">
+                    <Upload className="h-4 w-4 text-[var(--color-muted)]" />
+                    <span className="text-sm text-[var(--color-muted)]">{v.image_original ? 'Vervangen' : 'Uploaden'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) uploadImage(v.id, 'image_original', file)
+                      }}
+                    />
+                  </label>
+                  {v.image_original && (
+                    <img src={v.image_original} alt="Origineel" className="h-32 w-auto rounded-xl object-cover border border-[var(--color-border)]" />
+                  )}
                 </div>
+
+                {/* AI variant generatie */}
+                {v.image_original && (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">Gewijzigde afbeelding (voor het spel)</p>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        loading={aiLoading === v.id}
+                        onClick={() => generateAiVariants(v.id, v.image_original)}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {aiLoading === v.id ? 'AI genereert...' : 'Genereer met AI'}
+                      </Button>
+                    </div>
+
+                    {aiError && aiLoading !== v.id && (
+                      <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{aiError}</p>
+                    )}
+
+                    {/* AI gegenereerde opties */}
+                    {aiOptions[v.id]?.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs text-[var(--color-muted)]">Kies welke variant je wilt gebruiken in het spel:</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {aiOptions[v.id].map((opt) => {
+                            const isSelected = aiSelected[v.id] === opt.url || v.image_modified === opt.url
+                            return (
+                              <button
+                                key={opt.url}
+                                onClick={() => selectAiVariant(v.id, opt.url)}
+                                className={`relative rounded-xl overflow-hidden border-2 transition-all ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-[var(--color-border)] hover:border-blue-300'}`}
+                              >
+                                <img src={opt.url} alt={opt.label} className="w-full h-36 object-cover" />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-2 py-1 flex items-center justify-between">
+                                  <span>{opt.label}</span>
+                                  {isSelected && <CheckCircle className="h-3.5 w-3.5 text-blue-300" />}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {aiSelected[v.id] && (
+                          <p className="text-xs text-green-600">✓ Variant geselecteerd — vergeet niet op te slaan</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Of handmatig uploaden */}
+                    <div className="flex items-center gap-2 text-xs text-[var(--color-muted)]">
+                      <div className="flex-1 border-t border-[var(--color-border)]" />
+                      <span>of handmatig uploaden</span>
+                      <div className="flex-1 border-t border-[var(--color-border)]" />
+                    </div>
+                    <label className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-[var(--color-border)] rounded-xl cursor-pointer hover:border-blue-300 transition-colors w-fit">
+                      <Upload className="h-4 w-4 text-[var(--color-muted)]" />
+                      <span className="text-sm text-[var(--color-muted)]">{v.image_modified ? 'Vervangen' : 'Uploaden'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) uploadImage(v.id, 'image_modified', file)
+                        }}
+                      />
+                    </label>
+                    {v.image_modified && !aiOptions[v.id]?.some(o => o.url === v.image_modified) && (
+                      <img src={v.image_modified} alt="Gewijzigd" className="h-32 w-auto rounded-xl object-cover border border-[var(--color-border)]" />
+                    )}
+                  </div>
+                )}
+
+                {!v.image_original && (
+                  <p className="text-sm text-[var(--color-muted)] bg-gray-50 rounded-xl p-4">
+                    Upload eerst de originele afbeelding om AI-varianten te genereren.
+                  </p>
+                )}
 
                 {/* Actief toggle */}
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -178,7 +294,7 @@ export default function VariantenPage({ params }: { params: Promise<{ id: string
                   />
                 ) : (
                   <div className="bg-gray-50 rounded-xl p-6 text-center text-[var(--color-muted)] text-sm">
-                    Upload eerst de gewijzigde afbeelding om verschillen te plaatsen.
+                    Genereer een AI-variant of upload een gewijzigde afbeelding om verschillen te markeren.
                   </div>
                 )}
 

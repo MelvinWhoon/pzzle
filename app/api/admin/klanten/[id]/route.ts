@@ -8,9 +8,18 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!await requireAdmin(req)) return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 })
   const { id } = await params
   const supabase = createServiceClient()
-  const { data, error } = await supabase.from('clients').select('*').eq('id', id).single()
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*, campaigns(count)')
+    .eq('id', id)
+    .single()
   if (error || !data) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
-  return NextResponse.json({ client: data })
+  const client = {
+    ...data,
+    campaign_count: (data as Record<string, unknown> & { campaigns?: { count: number }[] }).campaigns?.[0]?.count ?? 0,
+    campaigns: undefined,
+  }
+  return NextResponse.json({ client })
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {

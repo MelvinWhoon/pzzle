@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Globe, BarChart2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import DataTable, { Column } from '@/components/admin/DataTable'
 import Badge from '@/components/ui/Badge'
@@ -34,9 +34,46 @@ export default function KlantenPage() {
   }
 
   const columns: Column<Client>[] = [
-    { key: 'name', header: 'Bedrijf' },
+    {
+      key: 'name',
+      header: 'Bedrijf',
+      render: (r) => (
+        <div className="flex items-center gap-3">
+          {r.logo_url ? (
+            <img src={r.logo_url} alt={r.name} className="h-8 w-8 rounded-lg object-contain border border-[var(--color-border)] bg-white p-0.5" />
+          ) : (
+            <div className="h-8 w-8 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center text-xs font-bold text-[var(--color-muted)]">
+              {r.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p className="font-semibold text-sm">{r.name}</p>
+            {r.city && <p className="text-xs text-[var(--color-muted)]">{r.city}</p>}
+          </div>
+        </div>
+      ),
+    },
     { key: 'contact_name', header: 'Contactpersoon', render: (r) => r.contact_name ?? '–' },
-    { key: 'city', header: 'Stad', render: (r) => r.city ?? '–' },
+    {
+      key: 'website',
+      header: 'Website',
+      render: (r) => r.website ? (
+        <a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-500 hover:underline text-sm">
+          <Globe className="h-3.5 w-3.5" />
+          {r.website.replace(/^https?:\/\//, '').split('/')[0]}
+        </a>
+      ) : '–',
+    },
+    {
+      key: 'campaign_count',
+      header: 'Campagnes',
+      render: (r) => (
+        <div className="flex items-center gap-1.5">
+          <BarChart2 className="h-3.5 w-3.5 text-[var(--color-muted)]" />
+          <span className="font-semibold">{r.campaign_count ?? 0}</span>
+        </div>
+      ),
+    },
     { key: 'active', header: 'Status', render: (r) => <Badge variant={r.active ? 'success' : 'default'}>{r.active ? 'Actief' : 'Inactief'}</Badge> },
     {
       key: 'actions', header: '',

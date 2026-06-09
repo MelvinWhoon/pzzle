@@ -38,10 +38,10 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-lg border border-[var(--color-border)] w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-[var(--color-primary)] rounded-2xl mb-4">
-            <span className="text-white font-extrabold text-lg">ZD</span>
+            <span className="text-white font-extrabold text-lg">Pz</span>
           </div>
           <h1 className="text-2xl font-extrabold">Admin inloggen</h1>
-          <p className="text-sm text-[var(--color-muted)] mt-1">Zoek de Verschillen Beheer</p>
+          <p className="text-sm text-[var(--color-muted)] mt-1">Pzzle Beheer</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

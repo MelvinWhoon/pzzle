@@ -8,6 +8,9 @@ export interface Client {
   postal_code: string | null
   notes: string | null
   active: boolean
+  logo_url: string | null
+  website: string | null
+  campaign_count?: number
   created_at: string
   updated_at: string
 }
