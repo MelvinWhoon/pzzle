@@ -1,10 +1,15 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'Pzzle <noreply@pzzle.nl>'
 
+// Instantieer per aanroep zodat het niet crasht tijdens build (module-level init)
+function getResend() {
+  const key = (process.env.RESEND_API_KEY ?? '').replace(/^﻿/, '').trim()
+  return new Resend(key)
+}
+
 function isEnabled() {
-  return !!process.env.RESEND_API_KEY
+  return !!(process.env.RESEND_API_KEY ?? '').replace(/^﻿/, '').trim()
 }
 
 // ── Bevestigingsmail voor speler na registratie ────────────────────────────
@@ -16,7 +21,7 @@ export async function sendRegistrationConfirmation(
   const clientName = (campaign.client as { name: string } | null)?.name ?? campaign.title
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM,
       to: player.email,
       subject: `Je doet mee bij ${clientName}! 🎉`,
@@ -91,7 +96,7 @@ export async function sendWinnerNotification(
   if (!isEnabled()) return
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM,
       to: player.email,
       subject: `🎉 Gefeliciteerd ${player.first_name}! Je hebt gewonnen bij ${clientName}!`,
