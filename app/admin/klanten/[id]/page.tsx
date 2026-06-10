@@ -18,6 +18,11 @@ export default function EditKlantPage({ params }: { params: Promise<{ id: string
   const [campaignCount, setCampaignCount] = useState<number | null>(null)
   const [statsToken, setStatsToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
@@ -151,14 +156,14 @@ export default function EditKlantPage({ params }: { params: Promise<{ id: string
             <p className="text-xs text-blue-600">Deel deze link met de klant — zij zien realtime statistieken zonder login.</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 text-xs bg-white border border-blue-200 rounded-lg px-3 py-2 text-blue-700 truncate">
-                {typeof window !== 'undefined' ? `${window.location.origin}/klant/${statsToken}/stats` : `/klant/${statsToken}/stats`}
+                {origin ? `${origin}/klant/${statsToken}/stats` : `/klant/${statsToken}/stats`}
               </code>
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 onClick={() => {
-                  const url = `${window.location.origin}/klant/${statsToken}/stats`
+                  const url = `${origin || window.location.origin}/klant/${statsToken}/stats`
                   navigator.clipboard.writeText(url)
                   setCopied(true)
                   setTimeout(() => setCopied(false), 2000)

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Share2, MessageCircle, Copy, Check, Trophy } from 'lucide-react'
 
 interface ShareCardProps {
@@ -15,6 +15,11 @@ export default function ShareCard({
   score, campaignTitle, clientName, differencesFound, timeSpentSec, campaignId,
 }: ShareCardProps) {
   const [copied, setCopied] = useState(false)
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
 
   const displayName = clientName ?? campaignTitle
   const timeStr = timeSpentSec < 60
@@ -22,7 +27,7 @@ export default function ShareCard({
     : `${Math.floor(timeSpentSec / 60)}m${timeSpentSec % 60 > 0 ? ` ${timeSpentSec % 60}s` : ''}`
 
   const shareText = `🎯 Ik speelde Zoek de Verschillen bij ${displayName} en haalde ${score.toLocaleString('nl-NL')} punten in ${timeStr}! Kun jij het ook?`
-  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/speel/campagne/${campaignId}`
+  const shareUrl = `${origin}/speel/campagne/${campaignId}`
 
   const shareWhatsApp = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`
