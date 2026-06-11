@@ -30,14 +30,18 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
 
-  // Haal aantal verschillen op
+  // Haal aantal stukjes/verschillen op (branches op game-type)
   const { data: variant } = await supabase
     .from('campaign_variants')
-    .select('differences')
+    .select('differences, puzzle_config')
     .eq('id', variant_id)
     .single()
 
-  const diffCount = Array.isArray(variant?.differences) ? variant.differences.length : 0
+  // Logo-puzzel: grid_size² stukjes; zoek-de-verschillen: lengte differences-array
+  const puzzleGridSize = (variant?.puzzle_config as { grid_size?: number } | null)?.grid_size
+  const diffCount = puzzleGridSize
+    ? puzzleGridSize ** 2
+    : (Array.isArray(variant?.differences) ? variant.differences.length : 0)
 
   const { data, error } = await supabase
     .from('game_sessions')

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { notFound } from 'next/navigation'
 import GameBoard from '@/components/game/GameBoard'
+import LogoPuzzleBoard from '@/components/game/LogoPuzzleBoard'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { Campaign, CampaignVariant } from '@/lib/types'
 
@@ -57,6 +58,16 @@ export default function SpelenPage({ params }: { params: Promise<{ id: string }>
   if (!sessionToken) return <p className="text-center py-8 text-[var(--color-muted)]">Ongeldige spellink. <a href="/speel" className="text-[var(--color-primary)] underline">Start opnieuw</a></p>
   if (loading) return <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
   if (!campaign || !variant) return <p className="text-center py-8">Campagne niet gevonden.</p>
+
+  if (campaign.game_type === 'logo_puzzle') {
+    return (
+      <LogoPuzzleBoard
+        variant={variant}
+        timeLimitSec={campaign.time_limit_sec ?? 120}
+        onComplete={handleComplete}
+      />
+    )
+  }
 
   return (
     <GameBoard

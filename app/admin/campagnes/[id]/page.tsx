@@ -21,6 +21,7 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
     radius_km: '', num_differences: '5', time_limit_sec: '120',
     starts_at: '', ends_at: '', status: 'draft',
     instant_win_enabled: false, instant_win_slots: '0', instant_win_time_sec: '',
+    game_type: 'spot_diff' as 'spot_diff' | 'logo_puzzle',
   })
   const [uploadingFlyer, setUploadingFlyer] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -51,6 +52,7 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         instant_win_enabled: c.instant_win_enabled ?? false,
         instant_win_slots: (c.instant_win_slots ?? 0).toString(),
         instant_win_time_sec: c.instant_win_time_sec?.toString() ?? '',
+        game_type: (c.game_type as 'spot_diff' | 'logo_puzzle') ?? 'spot_diff',
       })
     }).finally(() => setLoading(false))
   }, [id])
@@ -73,6 +75,7 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         instant_win_enabled: form.instant_win_enabled,
         instant_win_slots: parseInt(form.instant_win_slots) || 0,
         instant_win_time_sec: form.instant_win_time_sec ? parseInt(form.instant_win_time_sec) : null,
+        game_type: form.game_type,
       }),
     })
     setSaving(false)
@@ -103,6 +106,32 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         <Select label="Klant" value={form.client_id} onChange={(e) => setForm((p) => ({ ...p, client_id: e.target.value }))}
           options={clients.map((c) => ({ value: c.id, label: c.name }))} placeholder="Kies een klant..." />
         <Input label="Campagnenaam" value={form.title} onChange={set('title')} required />
+
+        {/* Speltype keuze */}
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium">Speltype</p>
+          <div className="flex gap-3">
+            {([
+              { value: 'spot_diff', icon: '🔍', label: 'Zoek de Verschillen', desc: 'Klassiek twee-afbeeldingen spel' },
+              { value: 'logo_puzzle', icon: '🧩', label: 'Logo Legpuzzel', desc: 'Logo in stukjes puzzelen' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, game_type: opt.value }))}
+                className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm ${
+                  form.game_type === opt.value
+                    ? 'border-[var(--color-primary)] bg-blue-50 text-[var(--color-primary)]'
+                    : 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-blue-200'
+                }`}
+              >
+                <span className="text-2xl">{opt.icon}</span>
+                <span className="font-bold text-xs">{opt.label}</span>
+                <span className="text-[10px] opacity-70 text-center">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Omschrijving</label>
           <textarea value={form.description} onChange={set('description')} rows={2}
@@ -143,7 +172,9 @@ export default function EditCampagnePage({ params }: { params: Promise<{ id: str
         <Input label="Postcodegebieden" value={form.postal_codes_raw} onChange={set('postal_codes_raw')} placeholder="5061, 5062" />
         <Input label="Radius in km" type="number" value={form.radius_km} onChange={set('radius_km')} />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Aantal verschillen" type="number" min="1" max="20" value={form.num_differences} onChange={set('num_differences')} />
+          {form.game_type === 'spot_diff' && (
+            <Input label="Aantal verschillen" type="number" min="1" max="20" value={form.num_differences} onChange={set('num_differences')} />
+          )}
           <Input label="Tijdslimiet (sec)" type="number" min="0" value={form.time_limit_sec} onChange={set('time_limit_sec')} />
         </div>
         <div className="grid grid-cols-2 gap-3">

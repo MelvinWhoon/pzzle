@@ -1,3 +1,8 @@
+export interface PuzzleConfig {
+  grid_size: 3 | 4 | 5
+  logo_url: string
+}
+
 export interface Client {
   id: string
   name: string
@@ -36,6 +41,7 @@ export interface Campaign {
   instant_win_enabled: boolean
   instant_win_slots: number
   instant_win_time_sec: number | null
+  game_type: 'spot_diff' | 'logo_puzzle'
   created_at: string
   updated_at: string
   client?: Client
@@ -69,6 +75,7 @@ export interface CampaignVariant {
   client_approved: boolean | null
   client_comment: string | null
   approved_at: string | null
+  puzzle_config: PuzzleConfig | null
   created_at: string
   updated_at: string
 }
